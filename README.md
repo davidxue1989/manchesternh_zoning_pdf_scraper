@@ -298,7 +298,7 @@ GitHub also sends you a notification email if a workflow **fails** — this is o
 Edit the cron expression in `.github/workflows/check.yml`:
 
 ```yaml
-- cron: "*/15 * * * *"   # every 15 minutes (current)
+- cron: "0 * * * *"      # every hour (current)
 - cron: "0 * * * *"      # every hour
 - cron: "0 13 * * 1,4"   # Mon and Thu at 9 AM ET
 ```
