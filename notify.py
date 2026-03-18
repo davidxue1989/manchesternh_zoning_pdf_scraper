@@ -124,8 +124,9 @@ def main():
         subject = f"[Manchester ZBA] {len(new_pdfs)} new PDF(s) posted"
         lines = ["New PDFs are available on the Manchester NH Zoning Board page:\n"]
         for p in new_pdfs:
+            encoded_url = urllib.parse.quote(p['url'], safe=":/?=&#")
             lines.append(f"  {p['filename']}")
-            lines.append(f"  {p['url']}\n")
+            lines.append(f"  {encoded_url}\n")
         lines.append(f"\nSource: {args.url}")
         send_email(subject, "\n".join(lines))
 
