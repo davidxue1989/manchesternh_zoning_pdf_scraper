@@ -75,7 +75,19 @@ def main():
         "--dry-run", action="store_true",
         help="Print new PDFs without downloading or updating the manifest",
     )
+    parser.add_argument(
+        "--test-email", action="store_true",
+        help="Send a test email immediately regardless of new PDFs "
+             "(requires NOTIFY_FROM, NOTIFY_PASSWORD, NOTIFY_TO env vars)",
+    )
     args = parser.parse_args()
+
+    if args.test_email:
+        send_email(
+            "[Manchester ZBA] Test email",
+            "This is a test from the Manchester NH ZBA PDF scraper.\n\nEmail notifications are working correctly.",
+        )
+        return
 
     seen = load_manifest()
     all_pdfs = fetch_pdf_links(args.url)
