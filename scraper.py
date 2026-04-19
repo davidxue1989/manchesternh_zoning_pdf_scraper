@@ -1,8 +1,7 @@
 """
 Manchester NH Zoning Board Project Applications PDF Scraper
 
-Scrapes PDFs from:
-https://www.manchesternh.gov/Departments/Planning-and-Comm-Dev/Zoning-Board/Project-Applications
+Add URLs to PAGE_URLS to scrape additional pages.
 """
 
 import argparse
@@ -15,7 +14,14 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://www.manchesternh.gov"
-PAGE_URL = f"{BASE_URL}/Departments/Planning-and-Comm-Dev/Zoning-Board/Project-Applications"
+
+# Add more URLs here to scrape additional pages
+PAGE_URLS = [
+    f"{BASE_URL}/Departments/Planning-and-Comm-Dev/Zoning-Board/Project-Applications",
+    f"{BASE_URL}/Departments/Planning-and-Comm-Dev/Planning-Board/Project-Applications",
+]
+
+PAGE_URL = PAGE_URLS[0]  # kept for backward compatibility
 
 
 def fetch_pdf_links(url: str) -> list[dict]:
