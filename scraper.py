@@ -21,6 +21,7 @@ MERRIMACK_BASE_URL = "https://www.merrimacknh.gov"
 # Merrimack NH pages to monitor for new agendas
 MERRIMACK_URLS = [
     f"{MERRIMACK_BASE_URL}/node/2261/agenda",
+    f"{MERRIMACK_BASE_URL}/node/2296/agenda",
 ]
 
 _YEAR_RE = re.compile(r"\b(20\d{2})\b")
