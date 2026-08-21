@@ -40,6 +40,8 @@ SOURCES = [
     {"type": "node_agenda", "url": "https://www.merrimacknh.gov/node/2296/agenda",  "label": "Merrimack Zoning Board"},
     {"type": "node_agenda", "url": "https://www.derrynh.gov/node/206/agenda",       "label": "Derry Planning Board"},
     {"type": "node_agenda", "url": "https://www.derrynh.gov/node/216/agenda",       "label": "Derry Zoning Board"},
+    {"type": "node_agenda", "url": "https://www.somersworthnh.gov/node/673/agenda", "label": "Somersworth Planning Board"},
+    {"type": "node_agenda", "url": "https://www.somersworthnh.gov/node/746/agenda", "label": "Somersworth ZBA"},
     # CivicPlus AgendaCenter
     {"type": "agendacenter", "url": "https://www.salemnh.gov/AgendaCenter/Zoning-Board-of-Adjustment-14", "label": "Salem ZBA"},
     {"type": "agendacenter", "url": "https://www.salemnh.gov/AgendaCenter/Planning-Board-6",              "label": "Salem Planning Board"},
