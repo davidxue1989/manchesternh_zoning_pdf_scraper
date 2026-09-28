@@ -7,7 +7,8 @@ Add new sources to the SOURCES list; supported types:
   agendacenter  — CivicPlus AgendaCenter /AgendaCenter/<Board>-<ID>
   archive       — CivicPlus Archive.aspx?AMID=NNN
   legistar      — Legistar REST API (webapi.legistar.com)
-  civicclerk    — CivicClerk portal (React SPA with HTML fallback)
+  civicclerk    — CivicClerk portal (public OData API)
+  portsmouth    — Portsmouth Planning Dept board page + upcoming event pages
   gdoc_agenda   — Published Google Sheet board list → per-board Google Doc agenda
 """
 
@@ -59,9 +60,16 @@ SOURCES = [
     # Legistar REST API — Planning Board only
     {"type": "legistar", "url": "https://webapi.legistar.com/v1/ConcordNH/events",
      "label": "Concord Planning Board", "board_filter": "Planning Board"},
-    # CivicClerk portal — Planning & Zoning categories 38 and 77
+    # CivicClerk portal (public API) — Planning & Zoning categories 38 and 77
     {"type": "civicclerk", "url": "https://nashuanh.portal.civicclerk.com/?category_id=38,77",
      "label": "Nashua Planning/Zoning"},
+    # Portsmouth Planning Department board pages
+    {"type": "portsmouth", "url": "https://www.portsmouthnh.gov/planportsmouth/planning-board",
+     "archive_url": "https://www.portsmouthnh.gov/planportsmouth/planning-board/planning-board-archived-meetings-and-material",
+     "label": "Portsmouth Planning Board"},
+    {"type": "portsmouth", "url": "https://www.portsmouthnh.gov/planportsmouth/zoning-board-adjustment",
+     "archive_url": "https://www.portsmouthnh.gov/planportsmouth/zoning-board-adjustment/zoning-board-adjustment-archived-meetings-and-material",
+     "label": "Portsmouth ZBA"},
     # Google Sheet → Google Doc agendas (Tilton) — one doc per board, overwritten each meeting
     {"type": "gdoc_agenda", "url": TILTON_SHEET_URL,
      "label": "Tilton Planning Board", "board_filter": "Planning Board"},
@@ -71,6 +79,10 @@ SOURCES = [
 
 # Keep for backward compatibility with existing manifest entries
 MERRIMACK_URLS = [s["url"] for s in SOURCES if "merrimacknh.gov" in s["url"]]
+
+# Sources that list many dated meetings only report ones this recent (avoids
+# flooding the first email with a whole year of old agendas).
+RECENT_DAYS = 30
 
 _YEAR_RE = re.compile(r"\b(20\d{2})\b")
 _YEAR_ONLY_RE = re.compile(r"^(20\d{2})$")
@@ -401,74 +413,48 @@ def fetch_legistar_links(url: str, board_filter=None) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def fetch_civicclerk_links(url: str) -> list[dict]:
-    """Fetch agenda links from a CivicClerk portal.
+    """Fetch agenda files from a CivicClerk portal via its public OData API.
 
-    Tries REST API endpoints first; falls back to HTML scraping for
-    View.ashx?M=A agenda links if the API is unavailable.
+    url — portal URL with category IDs, e.g.
+          https://nashuanh.portal.civicclerk.com/?category_id=38,77
+    The portal itself is a JavaScript SPA; the data comes from the matching
+    https://<tenant>.api.civicclerk.com/v1/Events endpoint.  Returns one item
+    per published "Agenda" file for meetings from RECENT_DAYS ago onward, so
+    an amended agenda (new file) also triggers a notification.
     """
     import requests
     print(f"Fetching CivicClerk: {url}")
     parsed = urllib.parse.urlparse(url)
-    base = f"{parsed.scheme}://{parsed.netloc}"
-    qs = urllib.parse.parse_qs(parsed.query)
-    category_ids = qs.get("category_id", [""])[0]
-    current_year = datetime.date.today().year
+    api = f"https://{parsed.netloc.replace('.portal.', '.api.')}/v1"
+    category_ids = urllib.parse.parse_qs(parsed.query).get("category_id", [""])[0]
+    since = (datetime.date.today() - datetime.timedelta(days=RECENT_DAYS)).isoformat()
 
-    # Try known CivicClerk API endpoints
-    for api_path in ("/api/v2/PublicMeetings", "/api/v2/events", "/api/events", "/api/v1/events"):
-        try:
-            r = requests.get(
-                base + api_path,
-                params={"category_id": category_ids, "year": current_year},
-                headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"},
-                timeout=15,
-            )
-            if r.status_code == 200 and "json" in r.headers.get("content-type", ""):
-                data = r.json()
-                items = data if isinstance(data, list) else data.get("items", data.get("data", []))
-                links = []
-                for item in items:
-                    agenda_url = (item.get("agendaUrl") or item.get("agenda_url")
-                                  or item.get("AgendaFile") or "")
-                    if not agenda_url:
-                        continue
-                    title = item.get("title") or item.get("name") or item.get("Name", "Meeting")
-                    date_val = str(item.get("date") or item.get("meetingDate") or item.get("EventDate", ""))
-                    year = int(date_val[:4]) if len(date_val) >= 4 and date_val[:4].isdigit() else current_year
-                    if year != current_year:
-                        continue
-                    links.append({"url": agenda_url, "title": title, "year": year, "source_url": url})
-                if links:
-                    print(f"  Found {len(links)} agenda items via API ({api_path})")
-                    return links
-        except Exception:
-            pass
+    flt = f"startDateTime ge {since}"
+    if category_ids:
+        flt = f"categoryId in ({category_ids}) and {flt}"
+    r = requests.get(
+        f"{api}/Events",
+        params={"$filter": flt, "$orderby": "startDateTime desc", "$top": 200},
+        headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"},
+        timeout=30,
+    )
+    r.raise_for_status()
 
-    # Fall back to HTML scraping for View.ashx agenda links
-    try:
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        links = []
-        seen: set[str] = set()
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
-            if "View.ashx" in href and "M=A" in href:
-                full_url = href if href.startswith("http") else base + href
-                if full_url in seen:
-                    continue
-                seen.add(full_url)
-                title = a_tag.get_text(strip=True) or "Agenda"
-                links.append({"url": full_url, "title": title, "year": current_year, "source_url": url})
-        if links:
-            print(f"  Found {len(links)} agenda links via HTML scraping")
-            return links
-    except Exception as e:
-        print(f"  [warn] CivicClerk HTML scraping failed: {e}", file=sys.stderr)
+    links: list[dict] = []
+    for event in r.json().get("value", []):
+        date_str = (event.get("startDateTime") or "")[:10]
+        for f in event.get("publishedFiles") or []:
+            if (f.get("type") or "").lower() != "agenda" or not f.get("fileId"):
+                continue
+            links.append({
+                "url": f"{api}/Meetings/GetMeetingFileStream(fileId={f['fileId']},plainText=false)",
+                "title": f"{event.get('eventName', 'Meeting')} — {date_str} — {f.get('name') or 'Agenda'}",
+                "year": int(date_str[:4]) if date_str else None,
+                "source_url": url,
+            })
 
-    print(f"  [warn] Could not retrieve CivicClerk data from {url} — page may require JavaScript",
-          file=sys.stderr)
-    return []
+    print(f"  Found {len(links)} agenda files since {since}")
+    return links
 
 
 # ---------------------------------------------------------------------------
@@ -541,6 +527,86 @@ def fetch_gdoc_agenda_links(url: str, board_filter=None) -> list[dict]:
     print(f"  [warn] No meeting date found in agenda doc; using content hash {digest}")
     return [{"url": f"{doc_url}#rev={digest}", "title": f"Agenda — {lines[0] if lines else 'updated'}",
              "year": datetime.date.today().year, "source_url": url}]
+
+
+# ---------------------------------------------------------------------------
+# Portsmouth Planning Department board pages
+# ---------------------------------------------------------------------------
+
+_MDY_IN_URL_RE = re.compile(r"(\d{1,2})-(\d{1,2})-(20\d{2})")
+
+
+def _canonical_portsmouth_file(href: str) -> str:
+    """Normalize a Portsmouth file URL.
+
+    The same PDF is linked under files.portsmouthnh.gov and
+    files.cityofportsmouth.com, with '+' or '%20' for spaces.
+    """
+    parsed = urllib.parse.urlparse(href)
+    path = urllib.parse.unquote_plus(parsed.path)
+    return "https://files.portsmouthnh.gov" + urllib.parse.quote(path)
+
+
+def fetch_portsmouth_links(url: str, archive_url=None) -> list[dict]:
+    """Fetch agenda PDFs for one Portsmouth board.
+
+    url         — board home page; lists upcoming /planportsmouth/events/ pages,
+                  each of which gets an "Agenda" link once one is posted.
+    archive_url — board's archived-meetings page (recent past meetings inline).
+    Only meetings dated within the last RECENT_DAYS days or later are returned.
+    """
+    import requests
+    print(f"Fetching Portsmouth: {url}")
+    base = "https://www.portsmouthnh.gov"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    cutoff = datetime.date.today() - datetime.timedelta(days=RECENT_DAYS)
+
+    def get_soup(page_url):
+        r = requests.get(page_url, headers=headers, timeout=30)
+        r.raise_for_status()
+        return BeautifulSoup(r.text, "html.parser")
+
+    home = get_soup(url)
+    board_slug = urllib.parse.urlparse(url).path.rstrip("/").split("/")[-1]
+    event_prefix = {"planning-board": "planning-board-",
+                    "zoning-board-adjustment": "board-adjustment-"}.get(board_slug, board_slug + "-")
+    event_urls = sorted({
+        base + a["href"] for a in home.find_all("a", href=True)
+        if a["href"].startswith(f"/planportsmouth/events/{event_prefix}")
+    })
+    pages = [get_soup(u) for u in event_urls]
+    if archive_url:
+        pages.append(get_soup(archive_url))
+
+    links: list[dict] = []
+    seen: set[str] = set()
+    for soup in pages:
+        for a_tag in soup.find_all("a", href=True):
+            text = a_tag.get_text(" ", strip=True)
+            href = a_tag["href"]
+            if "agenda" not in text.lower() or "packet" in text.lower():
+                continue
+            if "/agendas/" not in href or not href.lower().endswith(".pdf"):
+                continue
+            m = _MDY_IN_URL_RE.search(urllib.parse.unquote_plus(href))
+            if not m:
+                continue
+            mm, dd, yyyy = (int(x) for x in m.groups())
+            try:
+                meeting = datetime.date(yyyy, mm, dd)
+            except ValueError:
+                continue
+            if meeting < cutoff:
+                continue
+            canonical = _canonical_portsmouth_file(href)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            links.append({"url": canonical, "title": f"{meeting.isoformat()} — {text}",
+                          "year": yyyy, "source_url": url})
+
+    print(f"  Found {len(links)} agendas ({len(event_urls)} upcoming event pages checked)")
+    return links
 
 
 # ---------------------------------------------------------------------------

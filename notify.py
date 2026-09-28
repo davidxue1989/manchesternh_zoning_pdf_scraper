@@ -35,6 +35,7 @@ from scraper import (
     fetch_legistar_links,
     fetch_civicclerk_links,
     fetch_gdoc_agenda_links,
+    fetch_portsmouth_links,
     download_pdf,
     sanitize_filename,
 )
@@ -83,6 +84,8 @@ def fetch_source(source: dict) -> list[dict]:
             return fetch_legistar_links(url, board_filter=source.get("board_filter"))
         if t == "civicclerk":
             return fetch_civicclerk_links(url)
+        if t == "portsmouth":
+            return fetch_portsmouth_links(url, archive_url=source.get("archive_url"))
         if t == "gdoc_agenda":
             return fetch_gdoc_agenda_links(url, board_filter=source.get("board_filter"))
         raise ValueError(f"Unknown source type: {t!r}")
