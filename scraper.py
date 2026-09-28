@@ -8,6 +8,7 @@ Add new sources to the SOURCES list; supported types:
   archive       — CivicPlus Archive.aspx?AMID=NNN
   legistar      — Legistar REST API (webapi.legistar.com)
   civicclerk    — CivicClerk portal (React SPA with HTML fallback)
+  gdoc_agenda   — Published Google Sheet board list → per-board Google Doc agenda
 """
 
 import argparse
@@ -34,6 +35,12 @@ PAGE_URL = PAGE_URLS[0]  # kept for backward compatibility
 # ---------------------------------------------------------------------------
 # All other agenda/document monitoring sources
 # ---------------------------------------------------------------------------
+TILTON_SHEET_URL = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vRghDfL4lr5rKTLWbSOd_j_eVXfp8yaWu4ags2TUOpgjHfhkmCZ7UhiXlYHUTfr73bwsGmXyWJ7tCPe"
+    "/pubhtml/sheet?headers=false&gid=0"
+)
+
 SOURCES = [
     # CivicEngage node/agenda — Cloudflare-protected, year-as-subpath
     {"type": "node_agenda", "url": "https://www.merrimacknh.gov/node/2261/agenda",  "label": "Merrimack Planning Board"},
@@ -55,6 +62,11 @@ SOURCES = [
     # CivicClerk portal — Planning & Zoning categories 38 and 77
     {"type": "civicclerk", "url": "https://nashuanh.portal.civicclerk.com/?category_id=38,77",
      "label": "Nashua Planning/Zoning"},
+    # Google Sheet → Google Doc agendas (Tilton) — one doc per board, overwritten each meeting
+    {"type": "gdoc_agenda", "url": TILTON_SHEET_URL,
+     "label": "Tilton Planning Board", "board_filter": "Planning Board"},
+    {"type": "gdoc_agenda", "url": TILTON_SHEET_URL,
+     "label": "Tilton ZBA", "board_filter": "Zoning Board of Adjustment"},
 ]
 
 # Keep for backward compatibility with existing manifest entries
@@ -457,6 +469,78 @@ def fetch_civicclerk_links(url: str) -> list[dict]:
     print(f"  [warn] Could not retrieve CivicClerk data from {url} — page may require JavaScript",
           file=sys.stderr)
     return []
+
+
+# ---------------------------------------------------------------------------
+# Google Sheet → Google Doc agenda scraper (Tilton)
+# ---------------------------------------------------------------------------
+
+_MONTHS = ["january", "february", "march", "april", "may", "june", "july",
+           "august", "september", "october", "november", "december"]
+_DATE_RE = re.compile(
+    r"\b(" + "|".join(_MONTHS) + r")\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})\b", re.I
+)
+
+
+def _unwrap_google_redirect(href: str) -> str:
+    parsed = urllib.parse.urlparse(href)
+    if parsed.netloc.endswith("google.com") and parsed.path == "/url":
+        return urllib.parse.parse_qs(parsed.query).get("q", [href])[0]
+    return href
+
+
+def fetch_gdoc_agenda_links(url: str, board_filter=None) -> list[dict]:
+    """Fetch the current agenda for one board from a published Google Sheet.
+
+    The sheet has one row per board; its "Agenda" cell links to a Google Doc
+    that the town overwrites for each meeting.  The doc is exported as plain
+    text and the meeting date in its header makes each meeting a distinct
+    item (falls back to a content hash if no date is found).
+    """
+    import hashlib
+    import requests
+    print(f"Fetching Google Sheet: {url} (board={board_filter!r})")
+    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+
+    agenda_href = None
+    for tr in soup.find_all("tr"):
+        tds = tr.find_all("td")
+        if not tds or tds[0].get_text(strip=True).lower() != (board_filter or "").lower():
+            continue
+        cells = [td for td in tds if td.get_text(strip=True).lower() == "agenda"] or tds[1:2]
+        a_tag = cells[0].find("a", href=True) if cells else None
+        if a_tag:
+            agenda_href = _unwrap_google_redirect(a_tag["href"])
+        break
+
+    m = re.search(r"/document/d/([\w-]+)", agenda_href or "")
+    if not m:
+        print(f"  [warn] No Google Doc agenda link found for {board_filter!r}", file=sys.stderr)
+        return []
+    doc_id = m.group(1)
+
+    r = requests.get(f"https://docs.google.com/document/d/{doc_id}/export?format=txt",
+                     headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+    r.raise_for_status()
+    text = r.content.decode("utf-8-sig", errors="replace")
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    doc_url = f"https://docs.google.com/document/d/{doc_id}/edit"
+    for line in lines[:15]:
+        dm = _DATE_RE.search(line)
+        if dm:
+            month, day, year = _MONTHS.index(dm.group(1).lower()) + 1, int(dm.group(2)), int(dm.group(3))
+            meeting = f"{year:04d}-{month:02d}-{day:02d}"
+            print(f"  Current agenda: {meeting}")
+            return [{"url": f"{doc_url}#meeting={meeting}", "title": f"Agenda — {line}",
+                     "year": year, "source_url": url}]
+
+    digest = hashlib.sha1(" ".join(" ".join(lines).split()).encode()).hexdigest()[:12]
+    print(f"  [warn] No meeting date found in agenda doc; using content hash {digest}")
+    return [{"url": f"{doc_url}#rev={digest}", "title": f"Agenda — {lines[0] if lines else 'updated'}",
+             "year": datetime.date.today().year, "source_url": url}]
 
 
 # ---------------------------------------------------------------------------
