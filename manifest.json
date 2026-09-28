@@ -199,6 +199,11 @@
   "archive::https://www.concordnh.gov/Archive.aspx?ADID=9555",
   "archive::https://www.concordnh.gov/Archive.aspx?ADID=9594",
   "archive::https://www.concordnh.gov/Archive.aspx?ADID=9621",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14429,plainText=false)",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14440,plainText=false)",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14581,plainText=false)",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14594,plainText=false)",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14636,plainText=false)",
   "gdoc_agenda::https://docs.google.com/document/d/10tPy0bIwQJwZSdlZ3mq9syeTXWwydsgjg7hrHby48n8/edit#meeting=2026-09-29",
   "gdoc_agenda::https://docs.google.com/document/d/1pq8zlPcSQy7Xq2q6JikDFiMJ-dQ0mJfi7NZos8KwLK8/edit#meeting=2026-10-13",
   "legistar::https://concordnh.legistar1.com/concordnh/meetings/2026/1/1451_A_Planning_Board_26-01-21_Planning_Board_.pdf",
@@ -289,5 +294,7 @@
   "node_agenda::https://www.somersworthnh.gov/zoning-board-adjustment/agenda/public-notice-agenda-78",
   "node_agenda::https://www.somersworthnh.gov/zoning-board-adjustment/agenda/public-notice-agenda-79",
   "node_agenda::https://www.somersworthnh.gov/zoning-board-adjustment/agenda/public-notice-agenda-80",
-  "node_agenda::https://www.somersworthnh.gov/zoning-board-adjustment/agenda/public-notice-agenda-81"
+  "node_agenda::https://www.somersworthnh.gov/zoning-board-adjustment/agenda/public-notice-agenda-81",
+  "portsmouth::https://files.portsmouthnh.gov/agendas/2026/Planning%20Board/9-17-2026%20Meeting/9-17-2026_pb_ag.pdf",
+  "portsmouth::https://files.portsmouthnh.gov/agendas/2026/Zoning%20Board%20of%20Adjustment/09-15-2026%20Meeting/9-15-2026%20BOA%20AG_Rev%202.pdf"
 ]
