@@ -204,6 +204,7 @@
   "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14581,plainText=false)",
   "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14594,plainText=false)",
   "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14636,plainText=false)",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14692,plainText=false)",
   "gdoc_agenda::https://docs.google.com/document/d/10tPy0bIwQJwZSdlZ3mq9syeTXWwydsgjg7hrHby48n8/edit#meeting=2026-09-29",
   "gdoc_agenda::https://docs.google.com/document/d/1pq8zlPcSQy7Xq2q6JikDFiMJ-dQ0mJfi7NZos8KwLK8/edit#meeting=2026-10-13",
   "legistar::https://concordnh.legistar1.com/concordnh/meetings/2026/1/1451_A_Planning_Board_26-01-21_Planning_Board_.pdf",
