@@ -255,6 +255,7 @@
   "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14956,plainText=false)",
   "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14964,plainText=false)",
   "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=14998,plainText=false)",
+  "civicclerk::https://nashuanh.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=15001,plainText=false)",
   "gdoc_agenda::https://docs.google.com/document/d/10tPy0bIwQJwZSdlZ3mq9syeTXWwydsgjg7hrHby48n8/edit#meeting=2026-09-29",
   "gdoc_agenda::https://docs.google.com/document/d/10tPy0bIwQJwZSdlZ3mq9syeTXWwydsgjg7hrHby48n8/edit#meeting=2026-10-20",
   "gdoc_agenda::https://docs.google.com/document/d/10tPy0bIwQJwZSdlZ3mq9syeTXWwydsgjg7hrHby48n8/edit#meeting=2026-11-17",
